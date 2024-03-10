@@ -1,24 +1,31 @@
 import datetime
 import requests
+import os
 
 
 class Forecast:
 
     def __init__(self):
-        self.results = {}
+        self.results = read_query_file()
 
     def __setitem__(self, date, value):
         self.results[date] = value
+        save_query_file(date, value)
 
     def __getitem__(self, date):
-        return self.results.get(date)
+        if date not in self.results:
+            resp = get_weather(latitude, longitude, date)
+        else:
+            resp = self.results[date]
+        rain_or_not(resp)
+        return resp
 
     def __iter__(self):
         return iter(self.results)
 
     def items(self):
         for date, value in self.results.items():
-            return date,value
+            return date, value
 
 
 api_documentation = "https://open-meteo.com/en/docs"
@@ -35,7 +42,7 @@ def read_query_file():
     weather = {}
     with open(query_results, "r") as f:
         for line in f:
-            date,value = line.strip().split(" / ")
+            date, value = line.strip().split(" / ")
             weather[date] = float(value)
     return weather
 
@@ -45,16 +52,17 @@ def get_weather(latitude, longitude, provided_date):
                    f"precipitation_sum&timezone=Europe%2FLondon&start_date={provided_date}&end_date={provided_date}"
 
     response = requests.get(api_endpoint).json()
+    print(response)
     return response["daily"]["precipitation_sum"][0]
 
 
 def rain_or_not(weather_report):
-    if weather_report > 0.0:
+    if weather_report is None:
+        print("I don't know")
+    elif weather_report > 0.0:
         print(f"It will rain {weather_report} mm")
     elif weather_report == 0.0:
         print("It will not rain")
-    else:
-        print("I don't know")
 
 
 # ask the user for the date
@@ -75,4 +83,3 @@ else:
     expected_weather = get_weather(latitude, longitude, provided_date)
     save_query_file(provided_date, expected_weather)
     rain_or_not(expected_weather)
-
